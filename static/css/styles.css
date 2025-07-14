@@ -1,0 +1,308 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+h1{
+    text-align: center;
+    font-size: 24px;
+    color: white;
+    margin-bottom:30px;
+}
+
+p{
+    color: #868FB4
+}
+
+main{
+    margin-top: -100px;
+    justify-content: center;
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+}
+
+a{
+    position: absolute;
+    top: 2px;
+    left: 20px;
+    color: white;
+    background-color: #23304E7f;
+}
+
+.chat-container {
+    width: 800px;
+    background: #3c3c3c86;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 600px; /* Sesuaikan tinggi agar ada ruang untuk chat */
+    backdrop-filter: blur(2px);
+
+}
+
+.chat-header {
+    display: flex;
+    justify-content: space-between; /* Pisahkan elemen */
+    align-items: center;
+    background: #1A1B26;
+    color: white;
+    padding: 20px 15px;
+}
+
+.chat-header p {
+    flex: 1; /* Biarkan teks mengisi ruang tengah */
+    text-align: center; /* Pusatkan teks */
+    margin: 0;
+}
+
+.chat-box {
+    flex: 1; /* Agar chat-box bisa mengisi sisa ruang */
+    height: 350px;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.message-container {
+    display: flex;
+    align-items: flex-start; /* Agar gambar sejajar di atas dengan pesan */
+}
+
+.message-container.bot {
+    flex-direction: row; /* Pastikan pesan bot memiliki gambar di kiri */
+}
+
+.message-container.user {
+    flex-direction: row-reverse; /* Agar pesan user tetap di kanan */
+}
+
+.profile-picture {
+    width: 40px; 
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 20px; /* Beri jarak dengan pesan */
+}
+
+.message {
+    max-width: 75%;
+    padding: 10px;
+    margin: 5px;
+    border-radius: 8px;
+    word-wrap: break-word;
+}
+
+.user {
+    background: #5766E6;
+    color: white;
+    align-self: flex-end;
+    padding: 10px;
+    line-height: 1.5;
+}
+
+.bot {
+    background: #1A1B26;
+    color: white;
+    align-self: flex-start;
+    padding: 10px;
+    line-height: 1.5;
+}
+
+.loading {
+    font-style: italic;
+    color: gray;
+}
+
+/* Mic Container */
+.input-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: auto; 
+    padding: 10px;
+    border-top: 1px solid #1A1B26;
+}
+
+.mic-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    outline: none; 
+}
+
+.circle {
+    margin: 10px 10px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #1A1B26;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: 0.5s;
+    box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.14), 0 1px 18px 0 rgba(0, 0, 0, 0.12), 0 3px 5px -1px rgba(0, 0, 0, 0.2);
+    position: relative;
+    cursor: pointer;
+}
+
+.circle i {
+    color: #b2b1b1;
+    font-size: 23px;
+    transition: 0.9s;
+}
+
+.circle::before {
+    content: '';
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    opacity: 0.2;
+    position: absolute;
+    z-index: -1;
+}
+
+.circle.active {
+    background: #ff0000;
+    transform: scale(1.1); /* Tabahkan efek langsung */
+    transition: transform 0.2s ease-in-out;
+}
+
+.circle.active::before {
+    background: rgba(136, 136, 136, 0.553);
+    animation: bounce 1s infinite ease-in-out;
+}
+.circle.active i {
+    color: #ffffff;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.3);
+    }
+}
+
+.bg-wrap {
+    height: 100%;
+    width: 100%;
+    top: 0;
+    left: 0;
+    transform-style: preserve-3d;
+    perspective: 1000px;
+    position: fixed;
+    z-index: 0;
+}
+
+iframe {
+    position: absolute;
+    top: -100%;
+}
+  
+/* THE UNIVERSE */
+.universe {
+    z-index: -10000;
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    filter: contrast(120%);
+    background-color: black;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+}
+
+svg path, #sign {
+    fill: #001130;
+}
+
+.universe-container {
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(1600px at 70% 120%, rgba(33, 39, 80, 1) 10%, #021430 100%);
+}
+  
+.content {
+    width: inherit;
+    height: inherit;
+}
+  
+#universe {
+    width: 100%;
+    height: 100%;
+}
+  
+#footer {
+    position: absolute;
+    bottom: 0;
+    height: 300px;
+    width: 100%;
+}
+  
+#scene {
+    height: 100%;
+    position: absolute;
+    left: 50%;
+    margin-left: -800px;
+    z-index: 100000;
+}
+
+.linux {
+    display: flex;
+    gap: 8px;
+    position: absolute;
+    left: 15px; /* Letakkan di kanan */
+}
+.linux div {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+}
+
+.linux .left {
+    background: #F5533B;
+}
+
+.linux .middle {
+    background: #F5BA2B;
+}
+
+.linux .right {
+    background: #17C439;
+}
+
+/* Tambahan untuk Admin Dashboard */
+#notifications {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 20px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #1A1B26;
+    color: white;
+}
+
+#stats {
+    border: 1px solid #ccc;
+    padding: 10px;
+    background: #1A1B26;
+    color: white;
+}
+
+.notification {
+    margin: 5px 0;
+}

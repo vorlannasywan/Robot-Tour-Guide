@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <title>Chatbot Tour Guide</title>
+</head>
+<body>
+    <div class="universe">
+        <div class="universe-container">
+            <div class="content">
+                <canvas id="universe"></canvas>
+                <div id="footer">
+                    <svg id="scene" x="0px" y="0px" width="1600px" height="315px">
+                        <!-- SVG paths tetap sama, tidak diubah untuk ringkasnya -->
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a href="{{ url_for('login') }}">Login</a>
+    <main>
+        <h1>Apa yang bisa saya bantu?</h1>
+        <!-- Tombol untuk mengaktifkan audio -->
+        <button id="enableAudioButton" style="display: block; margin: 20px auto; padding: 10px 20px;">
+            Aktifkan Audio
+        </button>
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="linux">
+                    <div class="left"></div>
+                    <div class="middle"></div>
+                    <div class="right"></div>
+                </div>
+                <p>Chatbot Tour Guide</p>
+            </div>
+            <div id="chat-box" class="chat-box"></div>
+            <div class="input-container">
+                <button id="micButton" class="mic-button" onclick="startSpeechRecognition()">
+                    <div class="circle">
+                        <i class="fas fa-microphone"></i>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Inisialisasi AudioContext
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let isAudioContextUnlocked = false;
+
+        // Fungsi untuk membuka AudioContext
+        function unlockAudioContext() {
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    console.log("AudioContext telah diaktifkan");
+                    isAudioContextUnlocked = true;
+                    // Sembunyikan tombol setelah audio diaktifkan
+                    document.getElementById("enableAudioButton").style.display = "none";
+                });
+            } else {
+                isAudioContextUnlocked = true;
+                document.getElementById("enableAudioButton").style.display = "none";
+            }
+        }
+
+        // Event listener untuk tombol Aktifkan Audio
+        document.getElementById("enableAudioButton").addEventListener("click", unlockAudioContext);
+
+        // Connect to Flask Socket.IO server
+        const socket = io('http://127.0.0.1:5000');
+
+        // Listen for the mic_button_triggered event from Flask
+        socket.on('mic_button_triggered', function() {
+            console.log("Mic button triggered via Flask event!");
+            if (isAudioContextUnlocked) {
+                startSpeechRecognition();
+            } else {
+                alert("Silakan klik 'Aktifkan Audio' terlebih dahulu untuk mengizinkan audio.");
+            }
+        });
+
+        // Toggle active class on mic button click
+        const micContainer = document.getElementsByClassName('input-container')[0];
+        micContainer.addEventListener('click', (e) => {
+            let elem = e.target.closest('.mic-button');
+            if (elem && isAudioContextUnlocked) {
+                elem.classList.toggle('active');
+            } else if (!isAudioContextUnlocked) {
+                alert("Silakan klik 'Aktifkan Audio' terlebih dahulu.");
+            }
+        });
+
+        let audioElement = null; // Store global audio reference
+
+        function startSpeechRecognition() {
+            if (!isAudioContextUnlocked) {
+                alert("Silakan klik 'Aktifkan Audio' terlebih dahulu.");
+                return;
+            }
+
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = "id-ID";
+            recognition.continuous = false;
+
+            const micButton = document.getElementById("micButton");
+            const micIcon = micButton.querySelector("i");
+            const micCircle = micButton.querySelector(".circle");
+
+            // Stop any playing audio before starting recognition
+            if (audioElement && !audioElement.paused) {
+                audioElement.pause();
+                audioElement.currentTime = 0;
+            }
+
+            recognition.start();
+
+            recognition.onstart = function () {
+                micCircle.classList.add("active");
+                micIcon.classList.remove("fa-microphone");
+                micIcon.classList.add("fa-pause");
+            };
+
+            recognition.onresult = function (event) {
+                const transcript = event.results[0][0].transcript;
+                sendMessage(transcript);
+            };
+
+            recognition.onerror = function () {
+                micCircle.classList.remove("active");
+                micIcon.classList.remove("fa-pause");
+                micIcon.classList.add("fa-microphone");
+            };
+
+            recognition.onend = function () {
+                micCircle.classList.remove("active");
+                micIcon.classList.remove("fa-pause");
+                micIcon.classList.add("fa-microphone");
+            };
+        }
+
+        function sendMessage(input) {
+            let chatBox = document.getElementById("chat-box");
+
+            if (input === "") return;
+
+            // Display user message
+            let userMessage = document.createElement("div");
+            userMessage.className = "message user";
+            userMessage.innerText = input;
+            chatBox.appendChild(userMessage);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Display loading message
+            let loadingMessage = document.createElement("div");
+            loadingMessage.className = "message bot loading";
+            loadingMessage.innerText = "Sedang mencari informasi...";
+            chatBox.appendChild(loadingMessage);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Send request to server
+            fetch("/chat_with_stats", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: input })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingMessage.remove(); // Remove loading message
+
+                // Display bot message
+                let botMessageContainer = document.createElement("div");
+                botMessageContainer.className = "message-container";
+
+                let botProfile = document.createElement("img");
+                botProfile.src = "{{ url_for('static', filename='images/avatar.svg') }}";
+                botProfile.className = "profile-pic";
+
+                let botMessage = document.createElement("div");
+                botMessage.className = "message bot";
+                botMessage.innerText = data.response;
+
+                botMessageContainer.appendChild(botProfile);
+                botMessageContainer.appendChild(botMessage);
+                chatBox.appendChild(botMessageContainer);
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                // Play TTS for bot response
+                playTTS(data.response, () => {
+                    // Fetch and display recommendation after main response TTS finishes
+                    fetch("/top_room", {
+                        headers: { "Content-Type": "application/json" }
+                    })
+                    .then(response => response.json())
+                    .then(topRoom => {
+                        if (topRoom.nama && topRoom.count > 0) {
+                            let recommendationContainer = document.createElement("div");
+                            recommendationContainer.className = "message-container";
+                            let recommendationProfile = document.createElement("img");
+                            recommendationProfile.src = "{{ url_for('static', filename='images/avatar.svg') }}";
+                            recommendationProfile.className = "profile-pic";
+                            let recommendationMessage = document.createElement("div");
+                            recommendationMessage.className = "message bot";
+                            recommendationMessage.innerText = `Apakah kamu ingin tahu di mana ${topRoom.nama}?`;
+                            recommendationContainer.appendChild(recommendationProfile);
+                            recommendationContainer.appendChild(recommendationMessage);
+                            chatBox.appendChild(recommendationContainer);
+                            chatBox.scrollTop = chatBox.scrollHeight;
+
+                            // Play TTS for recommendation
+                            playTTS(`Apakah kamu ingin tahu di mana ${topRoom.nama}?`);
+                        }
+                    })
+                    .catch(error => console.error("Error fetching top room:", error));
+                });
+            })
+            .catch(error => {
+                loadingMessage.remove();
+                let errorMessage = document.createElement("div");
+                errorMessage.className = "message bot";
+                errorMessage.innerText = "Maaf, terjadi kesalahan. Silakan coba lagi.";
+                chatBox.appendChild(errorMessage);
+                chatBox.scrollTop = chatBox.scrollHeight;
+                console.error("Error fetching response:", error);
+            });
+        }
+
+        function playTTS(text, callback) {
+            if (!isAudioContextUnlocked) {
+                console.log("AudioContext belum diaktifkan, audio tidak diputar.");
+                return;
+            }
+
+            // Stop any playing audio
+            if (audioElement && !audioElement.paused) {
+                audioElement.pause();
+                audioElement.currentTime = 0;
+            }
+
+            const url = `https://tts-api.netlify.app/?text=${encodeURIComponent(text)}&lang=id&speed=1&pitch=1`;
+            audioElement = new Audio(url);
+            audioElement.play().catch(error => console.error("Gagal memutar audio:", error));
+
+            // Call callback when audio finishes
+            if (callback) {
+                audioElement.onended = callback;
+            }
+        }
+
+        // Background animation (tetap sama, tidak diubah untuk ringkasnya)
+        window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
+            window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+
+        var starDensity = .216;
+        var speedCoeff = .05;
+        var width;
+        var height;
+        var starCount;
+        var circleRadius;
+        var circleCenter;
+        var first = true;
+        var giantColor = '180,184,240';
+        var starColor = '226,225,142';
+        var cometColor = '226,225,224';
+        var canva = document.getElementById('universe');
+        var stars = [];
+
+        windowResizeHandler();
+        window.addEventListener('resize', windowResizeHandler, false);
+
+        function createUniverse() {
+            universe = canva.getContext('2d');
+            for (var i = 0; i < starCount; i++) {
+                stars[i] = new Star();
+                stars[i].reset();
+            }
+            draw();
+        }
+
+        function draw() {
+            universe.clearRect(0, 0, width, height);
+            var starsLength = stars.length;
+            for (var i = 0; i < starsLength; i++) {
+                var star = stars[i];
+                star.move();
+                star.fadeIn();
+                star.fadeOut();
+                star.draw();
+            }
+            window.requestAnimationFrame(draw);
+        }
+
+        function Star() {
+            this.reset = function() {
+                this.giant = getProbability(3);
+                this.comet = this.giant || first ? false : getProbability(10);
+                this.x = getRandInterval(0, width - 10);
+                this.y = getRandInterval(0, height);
+                this.r = getRandInterval(1.1, 2.6);
+                this.dx = getRandInterval(speedCoeff, 6 * speedCoeff) + (this.comet + 1 - 1) * speedCoeff * getRandInterval(50, 120) + speedCoeff * 2;
+                this.dy = -getRandInterval(speedCoeff, 6 * speedCoeff) - (this.comet + 1 - 1) * speedCoeff * getRandInterval(50, 120);
+                this.fadingOut = null;
+                this.fadingIn = true;
+                this.opacity = 0;
+                this.opacityTresh = getRandInterval(.2, 1 - (this.comet + 1 - 1) * .4);
+                this.do = getRandInterval(0.0005, 0.002) + (this.comet + 1 - 1) * .001;
+            };
+
+            this.fadeIn = function() {
+                if (this.fadingIn) {
+                    this.fadingIn = this.opacity > this.opacityTresh ? false : true;
+                    this.opacity += this.do;
+                }
+            };
+
+            this.fadeOut = function() {
+                if (this.fadingOut) {
+                    this.fadingOut = this.opacity < 0 ? false : true;
+                    this.opacity -= this.do / 2;
+                    if (this.x > width || this.y < 0) {
+                        this.fadingOut = false;
+                        this.reset();
+                    }
+                }
+            };
+
+            this.draw = function() {
+                universe.beginPath();
+                if (this.giant) {
+                    universe.fillStyle = 'rgba(' + giantColor + ',' + this.opacity + ')';
+                    universe.arc(this.x, this.y, 2, 0, 2 * Math.PI, false);
+                } else if (this.comet) {
+                    universe.fillStyle = 'rgba(' + cometColor + ',' + this.opacity + ')';
+                    universe.arc(this.x, this.y, 1.5, 0, 2 * Math.PI, false);
+                    for (var i = 0; i < 30; i++) {
+                        universe.fillStyle = 'rgba(' + cometColor + ',' + (this.opacity - (this.opacity / 20) * i) + ')';
+                        universe.rect(this.x - this.dx / 4 * i, this.y - this.dy / 4 * i - 2, 2, 2);
+                        universe.fill();
+                    }
+                } else {
+                    universe.fillStyle = 'rgba(' + starColor + ',' + this.opacity + ')';
+                    universe.rect(this.x, this.y, this.r, this.r);
+                }
+                universe.closePath();
+                universe.fill();
+            };
+
+            this.move = function() {
+                this.x += this.dx;
+                this.y += this.dy;
+                if (this.fadingOut === false) {
+                    this.reset();
+                }
+                if (this.x > width - (width / 4) || this.y < 0) {
+                    this.fadingOut = true;
+                }
+            };
+
+            (function() {
+                setTimeout(function() {
+                    first = false;
+                }, 50)
+            })()
+        }
+
+        function getProbability(percents) {
+            return ((Math.floor(Math.random() * 1000) + 1) < percents * 10);
+        }
+
+        function getRandInterval(min, max) {
+            return (Math.random() * (max - min) + min);
+        }
+
+        function windowResizeHandler() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            starCount = width * starDensity;
+            circleRadius = (width > height ? height / 2 : width / 2);
+            circleCenter = {
+                x: width / 2,
+                y: height / 2
+            }
+            canva.setAttribute('width', width);
+            canva.setAttribute('height', height);
+        }
+    </script>
+</body>
+</html>
